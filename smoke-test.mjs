@@ -88,6 +88,7 @@ try {
     await pause(250);
   }
   await check('同步页先显示 Google 连接入口', `!!document.querySelector('#connect') && !document.body.textContent.includes('真实客户数据')`);
+  await check('OAuth 客户端 ID 已配置', `document.querySelector('#client-id')?.value === '745042573393-a70a7planugqks4jetbncotp076190rf.apps.googleusercontent.com'`);
   await evaluate(`(() => {
     const header = Array.from({length:49}, (_,i)=>'字段'+i);
     header[0]='客户编号';header[1]='公司名称';header[22]='开发阶段';header[33]='负责人';header[48]='背调结论/开发建议';
@@ -105,7 +106,6 @@ try {
       }
       return {ok:true,status:200,json:async()=>data};
     };
-    document.querySelector('#client-id').value='test.apps.googleusercontent.com';
     document.querySelector('#connect').click();
   })()`);
   for (let i = 0; i < 40; i++) {
