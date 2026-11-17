@@ -11,7 +11,7 @@ GitHub Pages 上的静态 CRM 前端。
 1. 在 Google Cloud 项目中启用 **Google Sheets API**。
 2. 配置 OAuth 同意屏幕，按需要加入测试用户。
 3. 创建 **Web application** 类型的 OAuth 客户端；将 `https://yauneidakbattery-creator.github.io` 添加到 **Authorized JavaScript origins**。
-4. 打开 `live.html`，填入以 `.apps.googleusercontent.com` 结尾的客户端 ID，并用有权访问原表格的 Google 账号授权。
+4. 已配置 Google OAuth 网页客户端 ID。打开 `live.html`，用有权访问原表格的 Google 账号授权。若要更换客户端 ID，可在页面的“连接配置”中修改。
 
 客户端 ID 是公开标识，可以保存在浏览器本地；OAuth 访问令牌只保存在当前页面内存。不要将客户端密钥、服务账号密钥或个人访问令牌提交到仓库。
 
