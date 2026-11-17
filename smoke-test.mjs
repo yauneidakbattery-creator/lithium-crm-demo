@@ -82,6 +82,43 @@ try {
   await check('客户详情打开', `document.querySelector('#view').textContent.includes('West Marine') && !!document.querySelector('.detail-top')`);
   await evaluate(`document.querySelector('[data-page="customers"]').click()`);
   await check('返回客户列表', `document.querySelector('#view h1')?.textContent === '客户管理'`);
+  await send('Page.navigate', { url: 'https://yauneidakbattery-creator.github.io/lithium-crm-demo/live.html' });
+  for (let i = 0; i < 80; i++) {
+    try { if (await evaluate(`!!document.querySelector('#connect')`)) break; } catch {}
+    await pause(250);
+  }
+  await check('同步页先显示 Google 连接入口', `!!document.querySelector('#connect') && !document.body.textContent.includes('真实客户数据')`);
+  await evaluate(`(() => {
+    const header = Array.from({length:49}, (_,i)=>'字段'+i);
+    header[0]='客户编号';header[1]='公司名称';header[22]='开发阶段';header[33]='负责人';header[48]='背调结论/开发建议';
+    const row = Array(49).fill('');row[0]='US-MAR-001';row[1]='West Marine';row[22]='未联系';row[33]='待分配';
+    window.__writes=[];
+    window.google={accounts:{oauth2:{initTokenClient:({callback})=>({requestAccessToken:()=>callback({access_token:'test-only',expires_in:3600})})}}};
+    window.fetch=async (url,options={})=>{
+      let data={};
+      if(String(url).includes('A1%3AAW1000')) data={values:[header,row]};
+      else if(String(url).includes('A2%3AAW2')) data={values:[row]};
+      else if(String(url).includes('values:batchUpdate')) {
+        const body=JSON.parse(options.body);window.__writes.push(body);
+        for(const item of body.data) if(item.range.endsWith('B2'))row[1]=item.values[0][0];
+        data={totalUpdatedCells:body.data.length};
+      }
+      return {ok:true,status:200,json:async()=>data};
+    };
+    document.querySelector('#client-id').value='test.apps.googleusercontent.com';
+    document.querySelector('#connect').click();
+  })()`);
+  for (let i = 0; i < 40; i++) {
+    if (await evaluate(`!!document.querySelector('#edit')`)) break;
+    await pause(250);
+  }
+  await check('模拟授权后读取表格', `document.querySelectorAll('[data-id]').length === 1 && document.body.textContent.includes('West Marine')`);
+  await evaluate(`document.querySelector('#edit').click();document.querySelector('[data-field="1"]').value='West Marine Updated';document.querySelector('#save').click()`);
+  for (let i = 0; i < 40; i++) {
+    if (await evaluate(`window.__writes.length > 0`)) break;
+    await pause(250);
+  }
+  await check('模拟保存只写回改动单元格', `window.__writes.length === 1 && window.__writes[0].data.length === 1 && window.__writes[0].data[0].range.endsWith('B2') && window.__writes[0].data[0].values[0][0] === 'West Marine Updated'`);
   await send('Browser.close');
 } finally {
   socket?.close();
