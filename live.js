@@ -15,6 +15,7 @@ const app = document.querySelector('#app');
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const column = index => {let n=index+1,s='';while(n){n--;s=String.fromCharCode(65+n%26)+s;n=Math.floor(n/26)}return s};
 let clientId = localStorage.getItem('lithium-crm-google-client-id') || DEFAULT_CLIENT_ID;
+let googleLoginReady = Boolean(window.google?.accounts?.oauth2);
 let token = null, tokenExpires = 0, tokenClient = null;
 let headers = [], rows = [], selectedId = null, filter = '', stage = '', group = '基础资料';
 let edit = false, draft = [], snapshot = [], message = '', messageType = '', busy = false, lastSync = null;
@@ -22,14 +23,30 @@ let edit = false, draft = [], snapshot = [], message = '', messageType = '', bus
 function say(text, type='') { message=text; messageType=type; const box=document.querySelector('#message'); if(box){box.textContent=text;box.className=`status ${type}`;} }
 function activeToken() { return token && Date.now() < tokenExpires - 60_000; }
 function renderSetup() {
-  app.innerHTML = `<div class="panel setup"><h1>连接客户开发表格</h1><p class="muted">使用有权访问原表格的 Google 账号授权。登录后可读取 49 个字段，并将客户修改写回原表格。公开访客无法直接看到表格数据。</p><button class="button primary" id="connect">使用 Google 账号连接</button><p id="message" class="status ${messageType}" role="status">${escapeHtml(message)}</p><details><summary class="hint">连接配置</summary><label class="field"><span>Google OAuth 网页客户端 ID</span><input id="client-id" placeholder="xxxxxxxx.apps.googleusercontent.com" value="${escapeHtml(clientId)}"></label><p class="hint">Google Cloud 中需启用 Google Sheets API，并将 <b>${escapeHtml(location.origin)}</b> 加入“已获授权的 JavaScript 来源”。客户端 ID 是公开标识；访问令牌仅保存在本页内存中。</p></details><div class="notice">当前按 Google 表格本身的共享权限控制读写。老板/业务员分区权限仍需服务端实现，不能仅凭页面按钮限制。</div></div>`;
+  app.innerHTML = `<div class="panel setup"><h1>连接客户开发表格</h1><p class="muted">使用有权访问原表格的 Google 账号授权。登录后可读取 49 个字段，并将客户修改写回原表格。公开访客无法直接看到表格数据。</p><button class="button primary" id="connect" ${googleLoginReady?'':'disabled'}>使用 Google 账号连接</button><p id="message" class="status ${messageType}" role="status">${escapeHtml(message||'正在加载 Google 登录组件…')}</p><p class="hint">请在 Chrome 或 Edge 中完成 Google 授权。如果当前在 Codex 内置浏览器，请复制本页地址到浏览器地址栏打开。</p><details><summary class="hint">连接配置</summary><label class="field"><span>Google OAuth 网页客户端 ID</span><input id="client-id" placeholder="xxxxxxxx.apps.googleusercontent.com" value="${escapeHtml(clientId)}"></label><p class="hint">Google Cloud 中需启用 Google Sheets API，并将 <b>${escapeHtml(location.origin)}</b> 加入“已获授权的 JavaScript 来源”。客户端 ID 是公开标识；访问令牌仅保存在本页内存中。</p></details><div class="notice">当前按 Google 表格本身的共享权限控制读写。老板/业务员分区权限仍需服务端实现，不能仅凭页面按钮限制。</div></div>`;
   document.querySelector('#connect').onclick = connect;
+}
+function loadGoogleLogin() {
+  if(googleLoginReady){renderSetup();return}
+  const script=document.createElement('script');
+  script.src='https://accounts.google.com/gsi/client';
+  script.async=true;
+  let finished=false;
+  const finish=ready=>{
+    if(finished)return;finished=true;googleLoginReady=ready;
+    if(ready){say('Google 登录已就绪，请点击连接。','success');renderSetup()}
+    else say('当前浏览器无法加载 Google 登录。请复制本页地址，在 Chrome 或 Edge 中打开后刷新。','error');
+  };
+  script.onload=()=>finish(Boolean(window.google?.accounts?.oauth2));
+  script.onerror=()=>finish(false);
+  document.head.append(script);
+  setTimeout(()=>finish(Boolean(window.google?.accounts?.oauth2)),10000);
 }
 function connect() {
   clientId = document.querySelector('#client-id').value.trim();
   if(!/^[\w-]+\.apps\.googleusercontent\.com$/.test(clientId)){say('请填写有效的 Google OAuth 网页客户端 ID。','error');return}
   localStorage.setItem('lithium-crm-google-client-id',clientId);
-  if(!window.google?.accounts?.oauth2){say('Google 登录组件尚未加载，请稍后重试。','error');return}
+  if(!googleLoginReady||!window.google?.accounts?.oauth2){say('Google 登录尚未就绪。请在 Chrome 或 Edge 中打开并刷新。','error');return}
   tokenClient = google.accounts.oauth2.initTokenClient({client_id:clientId,scope:SCOPE,callback:async response=>{
     if(response.error){say(`Google 授权失败：${response.error}`,'error');return}
     token=response.access_token;tokenExpires=Date.now()+Number(response.expires_in||3500)*1000;
@@ -117,3 +134,4 @@ async function createCustomer(){
   }catch(error){say(error.message,'error')}finally{busy=false}
 }
 renderSetup();
+loadGoogleLogin();
