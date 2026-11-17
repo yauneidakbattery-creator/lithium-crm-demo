@@ -1,5 +1,6 @@
 const SHEET_ID = '1J5GsH4KaPL7CwEpS_5sXhY9A-TZDlLScr1tXS2cyONU';
 const TAB = '客户开发';
+const DEFAULT_CLIENT_ID = '745042573393-a70a7planugqks4jetbncotp076190rf.apps.googleusercontent.com';
 const SCOPE = 'https://www.googleapis.com/auth/spreadsheets';
 const API = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}`;
 const GROUPS = {
@@ -13,7 +14,7 @@ const EXPECTED = {0:'客户编号',1:'公司名称',22:'开发阶段',33:'负责
 const app = document.querySelector('#app');
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const column = index => {let n=index+1,s='';while(n){n--;s=String.fromCharCode(65+n%26)+s;n=Math.floor(n/26)}return s};
-let clientId = localStorage.getItem('lithium-crm-google-client-id') || '';
+let clientId = localStorage.getItem('lithium-crm-google-client-id') || DEFAULT_CLIENT_ID;
 let token = null, tokenExpires = 0, tokenClient = null;
 let headers = [], rows = [], selectedId = null, filter = '', stage = '', group = '基础资料';
 let edit = false, draft = [], snapshot = [], message = '', messageType = '', busy = false, lastSync = null;
@@ -21,7 +22,7 @@ let edit = false, draft = [], snapshot = [], message = '', messageType = '', bus
 function say(text, type='') { message=text; messageType=type; const box=document.querySelector('#message'); if(box){box.textContent=text;box.className=`status ${type}`;} }
 function activeToken() { return token && Date.now() < tokenExpires - 60_000; }
 function renderSetup() {
-  app.innerHTML = `<div class="panel setup"><h1>连接客户开发表格</h1><p class="muted">使用有权访问原表格的 Google 账号授权。登录后可读取 49 个字段，并将客户修改写回原表格。公开访客无法直接看到表格数据。</p><label class="field"><span>Google OAuth 网页客户端 ID</span><input id="client-id" placeholder="xxxxxxxx.apps.googleusercontent.com" value="${escapeHtml(clientId)}"></label><p class="hint">需在 Google Cloud 中启用 Google Sheets API，创建“Web application” OAuth 客户端，并将 <b>${escapeHtml(location.origin)}</b> 加入“已获授权的 JavaScript 来源”。客户端 ID 是公开标识；访问令牌仅保存在本页内存中。</p><button class="button primary" id="connect">使用 Google 账号连接</button><p id="message" class="status ${messageType}" role="status">${escapeHtml(message)}</p><div class="notice">当前按 Google 表格本身的共享权限控制读写。老板/业务员分区权限仍需服务端实现，不能仅凭页面按钮限制。</div></div>`;
+  app.innerHTML = `<div class="panel setup"><h1>连接客户开发表格</h1><p class="muted">使用有权访问原表格的 Google 账号授权。登录后可读取 49 个字段，并将客户修改写回原表格。公开访客无法直接看到表格数据。</p><button class="button primary" id="connect">使用 Google 账号连接</button><p id="message" class="status ${messageType}" role="status">${escapeHtml(message)}</p><details><summary class="hint">连接配置</summary><label class="field"><span>Google OAuth 网页客户端 ID</span><input id="client-id" placeholder="xxxxxxxx.apps.googleusercontent.com" value="${escapeHtml(clientId)}"></label><p class="hint">Google Cloud 中需启用 Google Sheets API，并将 <b>${escapeHtml(location.origin)}</b> 加入“已获授权的 JavaScript 来源”。客户端 ID 是公开标识；访问令牌仅保存在本页内存中。</p></details><div class="notice">当前按 Google 表格本身的共享权限控制读写。老板/业务员分区权限仍需服务端实现，不能仅凭页面按钮限制。</div></div>`;
   document.querySelector('#connect').onclick = connect;
 }
 function connect() {
